@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electron Survey</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="checkbox"], input[type="range"], select {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Participant Name -->
+<label for="participantName" style="text-align: center; margin-bottom: 20px;">Participant Name:</label>
+<input type="text" id="participantName" name="participantName" required>
+
+<!-- Questions -->
+<label for="questionText">Enter a question:</label>
+<input type="text" id="questionText" name="questionText">
+<select id="questionType">
+    <option value="yesno">Yes/No</option>
+    <option value="scale">Scale</option>
+    <option value="checkbox">Checkboxes</option>
+    <option value="multiplechoice">Multiple Choice</option>
+</select>
+<button type="button" onclick="addQuestion()">Add Question</button>
+<button type="button" onclick="removeQuestion()">Remove Question</button>
+
+<!-- Dynamic Questions -->
+<div id="dynamicQuestions"></div>
+
+<!-- Print Button -->
+<button type="button" onclick="printSurvey()">Print</button>
+
+<script>
+    const questions = [];
+
+    function addQuestion() {
+        const newQuestion = document.getElementById("questionText").value.trim();
+        const questionType = document.getElementById("questionType").value;
+
+        if (newQuestion && questionType) {
+            questions.push({ question: newQuestion, type: questionType });
+            updateDynamicQuestions();
+        }
+    }
+
+    function removeQuestion() {
+        const questionIndex = prompt("Enter the index of the question to remove:");
+        if (questionIndex !== null && !isNaN(questionIndex) && questionIndex >= 0 && questionIndex < questions.length) {
+            questions.splice(questionIndex, 1);
+            updateDynamicQuestions();
+        }
+    }
+
+    function updateDynamicQuestions() {
+        const dynamicQuestions = document.getElementById("dynamicQuestions");
+        dynamicQuestions.innerHTML = "";
+
+        questions.forEach(function (question, index) {
+            const questionElement = createQuestionElement(question, index);
+            dynamicQuestions.appendChild(questionElement);
+        });
+    }
+
+    function createQuestionElement(question, index) {
+        const questionElement = document.createElement("div");
+
+        if (question.type === "yesno") {
+            const yesLabel = document.createElement("label");
+            yesLabel.textContent = question.question;
+
+            const yesInput = document.createElement("select");
+            yesInput.name = "yesnoQuestions";
+            const yesOptions = ["Yes", "No"];
+            yesOptions.forEach((option) => {
+                const yesOption = document.createElement("option");
+                yesOption.value = option;
+                yesOption.textContent = option;
+                yesInput.appendChild(yesOption);
+            });
+
+            questionElement.appendChild(yesLabel);
+            questionElement.appendChild(yesInput);
+        } else if (question.type === "scale") {
+            const scaleLabel = document.createElement("label");
+            scaleLabel.textContent = question.question;
+
+            const scaleInput = document.createElement("input");
+            scaleInput.type = "range";
+            scaleInput.min = "1";
+            scaleInput.max = "10";
+            scaleInput.id = "scale" + index;
+            scaleInput.name = "scaleQuestions";
+            scaleInput.value = "5";
+
+            questionElement.appendChild(scaleLabel);
+            questionElement.appendChild(scaleInput);
+        } else if (question.type === "checkbox") {
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.id = "question" + index;
+            checkbox.name = "questions";
+            checkbox.value = question.question;
+
+            const label = document.createElement("label");
+            label.htmlFor = "question" + index;
+            label.textContent = question.question;
+
+            questionElement.appendChild(checkbox);
+            questionElement.appendChild(label);
+        } else if (question.type === "multiplechoice") {
+            const mcLabel = document.createElement("label");
+            mcLabel.textContent = question.question;
+
+            const mcInput = document.createElement("select");
+            mcInput.name = "multipleChoiceQuestions";
+            const mcOptions = ["Option 1", "Option 2", "Option 3"];
+            mcOptions.forEach((option) => {
+                const mcOption = document.createElement("option");
+                mcOption.value = option;
+                mcOption.textContent = option;
+                mcInput.appendChild(mcOption);
+            });
+
+            questionElement.appendChild(mcLabel);
+            questionElement.appendChild(mcInput);
+        }
+
+        return questionElement;
+    }
+
+    function printSurvey() {
+        const participantName = document.getElementById("participantName").value;
+        const yesnoQuestions = getYesNoQuestions();
+        const scaleQuestions = getScaleQuestions();
+        const checkboxQuestions = getCheckboxQuestions();
+        const multipleChoiceQuestions = getMultipleChoiceQuestions();
+
+        const printContent = `
+            <h2>Survey Responses</h2>
+            <p><strong>Participant Name:</strong> ${participantName}</p>
+            <p><strong>Yes/No Questions:</strong> ${yesnoQuestions.join(", ")}</p>
+            <p><strong>Scale Questions:</strong> ${scaleQuestions.join(", ")}</p>
+            <p><strong>Checkbox Questions:</strong> ${checkboxQuestions.join(", ")}</p>
+            <p><strong>Multiple Choice Questions:</strong> ${multipleChoiceQuestions.join(", ")}</p>
+        `;
+
+        const printWindow = require("electron").remote.getCurrentWindow();
+        printWindow.webContents.send("print", printContent);
+    }
+
+    function getYesNoQuestions() {
+        const yesnoQuestions = document.getElementsByName("yesnoQuestions");
+        const responses = [];
+
+        yesnoQuestions.forEach(function (question) {
+            responses.push(question.value);
+        });
+
+        return responses;
+    }
+
+    function getScaleQuestions() {
+        const scaleInputs = document.getElementsByName("scaleQuestions");
+        const scaleQuestions = [];
+
+        scaleInputs.forEach(function (scaleInput) {
+            scaleQuestions.push(scaleInput.value);
+        });
+
+        return scaleQuestions;
+    }
+
+    function getCheckboxQuestions() {
+        const checkboxes = document.getElementsByName("questions");
+        const selectedQuestions = [];
+
+        checkboxes.forEach(function (checkbox) {
+            if (checkbox.checked) {
+                selectedQuestions.push(checkbox.value);
+            }
+        });
+
+        return selectedQuestions;
+    }
+
+    function getMultipleChoiceQuestions() {
+        const mcQuestions = document.getElementsByName("multipleChoiceQuestions");
+        const responses = [];
+
+        mcQuestions.forEach(function (question) {
+            responses.push(question.value);
+        });
+
+        return responses;
+    }
+</script>
+
+</body>
+</html>
